@@ -1,62 +1,74 @@
 package com.store.bookstore.controller;
 
-import com.store.bookstore.dto.BookFullResponseDto;
-import com.store.bookstore.dto.BookRequestDto;
-import com.store.bookstore.dto.BookResponseDto;
-import com.store.bookstore.model.Author;
-import com.store.bookstore.model.Book;
-import com.store.bookstore.repository.AuthorRepository;
-import com.store.bookstore.repository.BookRepository;
+import com.store.bookstore.dto.book.request.BookCreateRequestDto;
+import com.store.bookstore.dto.book.response.BookFullResponseDto;
+import com.store.bookstore.dto.book.response.BookResponseDto;
+import com.store.bookstore.service.BookService;
 import lombok.RequiredArgsConstructor;
-import org.modelmapper.ModelMapper;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.UUID;
-@RestController
+import java.util.List;
 
+
+@RestController("/book")
 @RequiredArgsConstructor
 public class BookController {
 
-    private final BookRepository bookRepository;
-
-    private final AuthorRepository authorRepository;
-
-    private final ModelMapper modelMapper;
+    private final BookService bookService;
 
     @GetMapping("/book/{id}")
     public ResponseEntity<BookResponseDto> getBook(@PathVariable String id) {
-        Book book = bookRepository.findById(UUID.fromString(id)).orElse(null);
 
-        BookResponseDto bookResponseDto = modelMapper.map(book, BookResponseDto.class);
+        BookResponseDto bookResponseDto = bookService.getBookOnly(id);
 
         return ResponseEntity.ok(bookResponseDto);
     }
 
     @GetMapping("/book/full/{id}")
     public ResponseEntity<BookFullResponseDto> getFullBook(@PathVariable String id) {
-        Book book = bookRepository.findById(UUID.fromString(id)).orElse(null);
 
-        BookFullResponseDto bookResponseDto = modelMapper.map(book, BookFullResponseDto.class);
+        BookFullResponseDto bookFullResponseDto = bookService.getFullBook(id);
 
-        return ResponseEntity.ok(bookResponseDto);
+        return ResponseEntity.ok(bookFullResponseDto);
+    }
+
+    @GetMapping("/books")
+    public ResponseEntity<List<BookResponseDto>> getBooks() {
+
+        List<BookResponseDto> bookResponseDtos = bookService.getBooksOnly();
+
+        return ResponseEntity.ok(bookResponseDtos);
+    }
+
+    @GetMapping("/books/full")
+    public ResponseEntity<List<BookFullResponseDto>> getFullBooks() {
+
+        List<BookFullResponseDto> bookFullResponseDtos = bookService.getFullBooks();
+
+        return ResponseEntity.ok(bookFullResponseDtos);
     }
 
     @PostMapping("/book")
-    public ResponseEntity<Book> addBook(@RequestBody BookRequestDto bookRequestDto) {
-        Author author = authorRepository.findById(UUID.fromString(bookRequestDto.getAuthorId())).orElse(null);
+    public ResponseEntity<String> createBook(@RequestBody BookCreateRequestDto bookRequestDto) {
 
-        if (author == null) {
-            return ResponseEntity.badRequest().build();
-        }
+        bookService.createBook(bookRequestDto);
 
-        Book book = Book.builder()
-                .title(bookRequestDto.getTitle())
-                .description(bookRequestDto.getDescription())
-                .pageCount(bookRequestDto.getPageCount())
-                .author(author)
-                .build();
+        return ResponseEntity.ok("Book created");
+    }
 
-        return ResponseEntity.ok(bookRepository.save(book));
+    @PutMapping("/book/{id}")
+    public ResponseEntity<String> updateBook(@PathVariable String id, @RequestBody BookCreateRequestDto bookRequestDto) {
+
+        bookService.updateBook(id, bookRequestDto);
+
+        return ResponseEntity.ok("Book updated");
+    }
+
+    @DeleteMapping("/book/{id}")
+    public ResponseEntity<String> deleteBook(@PathVariable String id) {
+        bookService.deleteBook(id);
+
+        return ResponseEntity.ok("Book deleted");
     }
 }

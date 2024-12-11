@@ -1,9 +1,10 @@
 package com.store.bookstore.service;
 
-import com.store.bookstore.dto.AuthorFullResponseDto;
-import com.store.bookstore.dto.AuthorRequestDto;
-import com.store.bookstore.dto.AuthorResponseDto;
-import com.store.bookstore.dto.BookResponseDto;
+import com.store.bookstore.dto.author.response.AuthorFullResponseDto;
+import com.store.bookstore.dto.author.request.AuthorCreateRequestDto;
+import com.store.bookstore.dto.author.response.AuthorResponseDto;
+import com.store.bookstore.exception.EntityAlreadyExistsException;
+import com.store.bookstore.exception.EntityNotFoundException;
 import com.store.bookstore.model.Author;
 import com.store.bookstore.model.Book;
 import com.store.bookstore.repository.AuthorRepository;
@@ -13,7 +14,6 @@ import org.modelmapper.ModelMapper;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
-import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -21,68 +21,101 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class AuthorService {
 
-    private final AuthorRepository authorRepository;
+    private final AuthorRepository repository;
+    private final ModelMapper mapper;
 
-    private final ModelMapper modelMapper;
+    public List<AuthorResponseDto> getAuthorsOnly() {
+        List<Author> authors = repository.findAll();
 
-    public AuthorResponseDto getAuthorWithoutBooks(String id){
-        Optional<Author> authorOptional = authorRepository.findById(UUID.fromString(id));
-
-        if (authorOptional.isEmpty()){
-            return null;
+        if (authors.isEmpty()) {
+            throw new EntityNotFoundException("No authors found");
         }
 
-        Author author = authorOptional.get();
-        return modelMapper.map(author, AuthorResponseDto.class);
+        return authors.stream()
+                .map(author -> mapper.map(author, AuthorResponseDto.class))
+                .collect(Collectors.toList());
     }
 
     @Transactional
-    public AuthorFullResponseDto getAuthorWithBooks(String id){
-        Optional<Author> authorOptional = authorRepository.findById(UUID.fromString(id));
+    public List<AuthorFullResponseDto> getFullAuthors() {
+        List<Author> authors = repository.findAll();
 
-        if(authorOptional.isEmpty()){
-            return null;
+        if (authors.isEmpty()) {
+            throw new EntityNotFoundException("No authors found");
         }
 
-        Author author = authorOptional.get();
-        return modelMapper.map(author, AuthorFullResponseDto.class);
+        return authors.stream()
+                .map(author -> mapper.map(author, AuthorFullResponseDto.class))
+                .collect(Collectors.toList());
     }
 
-    public List<AuthorResponseDto> getAuthorsWithoutBooks() {
-        List<Author> authors = authorRepository.findAll();
+    public AuthorResponseDto getAuthorOnly(String id) {
+        Author author = repository
+                .findById(UUID.fromString(id))
+                .orElseThrow(() -> new EntityNotFoundException("No author found with ID: " + id));
 
-        if (authors.isEmpty()){
-            return null;
-        }
-
-        return authors.stream().map((author) -> {
-            return modelMapper.map(author, AuthorResponseDto.class);
-        }).collect(Collectors.toList());
+        return mapper.map(author, AuthorResponseDto.class);
     }
 
     @Transactional
-    public List<AuthorFullResponseDto> getAuthorsWithBooks() {
-        List<Author> authors = authorRepository.findAll();
+    public AuthorFullResponseDto getFullAuthor(String id) {
+        Author author = repository
+                .findById(UUID.fromString(id))
+                .orElseThrow(() -> new EntityNotFoundException("No author found with ID: " + id));
 
-        if (authors.isEmpty()){
-            return null;
-        }
-
-        return authors.stream().map((author) -> {
-            return modelMapper.map(author, AuthorFullResponseDto.class);
-        }).collect(Collectors.toList());
+        return mapper.map(author, AuthorFullResponseDto.class);
     }
 
-    public void createAuthorWithBooks(AuthorRequestDto author) {
-        Author authorEntity = modelMapper.map(author, Author.class);
-        List<Book> books = author.getBooks().stream().map((bookDto) ->  {
-            Book book = modelMapper.map(bookDto, Book.class);
-            book.setAuthor(authorEntity);
-            return book;
-        }).toList();
+    @Transactional
+    public AuthorFullResponseDto createAuthor(AuthorCreateRequestDto authorDto) {
+        Author authorEntity = mapper.map(authorDto, Author.class);
 
-        authorEntity.setBooks(books);
+        if (repository.existsByNameAndSurname(authorEntity.getName(), authorEntity.getSurname())) {
+            throw new EntityAlreadyExistsException("Author already exists: " + authorEntity.getName() + " " + authorEntity.getSurname());
+        }
 
-        authorRepository.save(authorEntity);
+        if (authorDto.getBooks() != null) {
+            List<Book> books = authorDto.getBooks().stream()
+                    .map(bookDto -> {
+                        Book book = mapper.map(bookDto, Book.class);
+                        book.setAuthor(authorEntity);
+                        return book;
+                    }).toList();
+            authorEntity.setBooks(books);
+        }
+
+        Author savedAuthor = repository.save(authorEntity);
+        return mapper.map(savedAuthor, AuthorFullResponseDto.class);
+    }
+
+    @Transactional
+    public AuthorFullResponseDto updateAuthor(String id, AuthorCreateRequestDto authorDto) {
+        Author author = repository
+                .findById(UUID.fromString(id))
+                .orElseThrow(() -> new EntityNotFoundException("No author found with ID: " + id));
+
+        author.setName(authorDto.getName());
+        author.setSurname(authorDto.getSurname());
+
+        if (authorDto.getBooks() != null) {
+            List<Book> books = authorDto.getBooks().stream()
+                    .map(bookDto -> {
+                        Book book = mapper.map(bookDto, Book.class);
+                        book.setAuthor(author);
+                        return book;
+                    }).collect(Collectors.toList());
+            author.setBooks(books);
+        }
+
+        Author updatedAuthor = repository.save(author);
+        return mapper.map(updatedAuthor, AuthorFullResponseDto.class);
+    }
+
+    public void deleteAuthor(String id) {
+        Author author = repository
+                .findById(UUID.fromString(id))
+                .orElseThrow(() -> new EntityNotFoundException("No author found with ID: " + id));
+
+        repository.delete(author);
     }
 }

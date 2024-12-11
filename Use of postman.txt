@@ -1,0 +1,39 @@
+Post http://localhost:8080/author
+
+{
+  "name": "John",
+  "surname": "Doe",
+  "books": [
+    {
+      "title": "Book Title 1",
+      "description": "A fascinating story about adventures.",
+      "pageCount": 250
+
+    },
+    {
+      "title": "Book Title 2",
+      "description": "An insightful book about science.",
+      "pageCount": 300
+    }
+  ]
+}
+
+Get http://localhost:8080/authors
+[
+    {
+        "id": "acb4c321-06a7-4543-91e7-43753959c8f3",
+        "name": "John",
+        "surname": "Doe"
+    }
+]
+
+Post http://localhost:8080/book
+{
+  "title": "Magic of Dawn",
+  "description": "This book tells the story of a group of young wizards who embark on an adventure to explore uncharted territories.",
+  "pageCount": 450,
+  "authorId": "Айди автора якого ми вже добавили"
+}
+
+
+get full info about book that we added http://localhost:8080/book/full/aa843b1c-eb5c-44d9-9443-f66efd46f2e7
